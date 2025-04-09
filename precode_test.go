@@ -11,21 +11,42 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMainHandlerWhenCountMoreThanTotal(t *testing.T) {
+func TestMainHandler_ValidRequest(t *testing.T) {
 	totalCount := 4
-	req := httptest.NewRequest("GET", "/cafe?count="+strconv.Itoa(totalCount)+"&city=moscow", nil)
-	responseRecorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/cafe?count="+strconv.Itoa(totalCount)+"&city=moscow", nil)
+	rec := httptest.NewRecorder()
 
 	handler := http.HandlerFunc(mainHandle)
-	handler.ServeHTTP(responseRecorder, req)
+	handler.ServeHTTP(rec, req)
 
-	// здесь нужно добавить необходимые проверки
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.NotEmpty(t, rec.Body.String())
+}
 
-	require.Equal(t, http.StatusBadRequest, responseRecorder.Code)
+func TestMainHandler_InvalidCity(t *testing.T) {
+	totalCount := 4
+	req := httptest.NewRequest(http.MethodGet, "/cafe?count="+strconv.Itoa(totalCount)+"&city=spb", nil)
+	rec := httptest.NewRecorder()
 
-	body := responseRecorder.Body.String()
-	assert.NotEmpty(t, body)
+	handler := http.HandlerFunc(mainHandle)
+	handler.ServeHTTP(rec, req)
 
-	cafes := strings.Split(body, ",")
-	assert.Len(t, cafes, 4)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Equal(t, "wrong city value", rec.Body.String())
+}
+
+func TestMainHandlerWhenCountMoreThanTotal(t *testing.T) {
+	totalCount := 10
+	req := httptest.NewRequest(http.MethodGet, "/cafe?count="+strconv.Itoa(totalCount)+"&city=moscow", nil)
+	rec := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(mainHandle)
+	handler.ServeHTTP(rec, req)
+
+	expected := strings.Join(cafeList["moscow"], ",")
+	body := rec.Body.String()
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, expected, body)
+	assert.Len(t, strings.Split(body, ","), len(cafeList["moscow"]))
 }
